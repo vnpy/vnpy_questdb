@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from datetime import datetime, timezone
 from time import monotonic, sleep
 from typing import Any
@@ -247,9 +248,6 @@ class QuestdbDatabase(BaseDatabase):
         """读取K线数据"""
         sql: str = f"""
             SELECT
-                symbol,
-                exchange,
-                interval,
                 datetime,
                 volume,
                 turnover,
@@ -264,7 +262,7 @@ class QuestdbDatabase(BaseDatabase):
               AND interval = %s
               AND datetime >= %s
               AND datetime <= %s
-              AND (deleted = false OR deleted IS NULL)
+              AND deleted = false
             ORDER BY datetime;
         """
 
@@ -277,22 +275,24 @@ class QuestdbDatabase(BaseDatabase):
         )
 
         bars: list[BarData] = []
-        for row in self._iter_rows(sql, params):
+        append = bars.append
+        from_datetime = self._from_questdb_datetime
+        for row in self._iter_tuples(sql, params):
             bar: BarData = BarData(
-                symbol=row["symbol"],
-                exchange=Exchange(row["exchange"]),
-                datetime=self._from_questdb_datetime(row["datetime"]),
-                interval=Interval(row["interval"]),
-                volume=row["volume"],
-                turnover=row["turnover"],
-                open_interest=row["open_interest"],
-                open_price=row["open_price"],
-                high_price=row["high_price"],
-                low_price=row["low_price"],
-                close_price=row["close_price"],
+                symbol=symbol,
+                exchange=exchange,
+                datetime=from_datetime(row[0]),
+                interval=interval,
+                volume=row[1],
+                turnover=row[2],
+                open_interest=row[3],
+                open_price=row[4],
+                high_price=row[5],
+                low_price=row[6],
+                close_price=row[7],
                 gateway_name="DB",
             )
-            bars.append(bar)
+            append(bar)
 
         return bars
 
@@ -306,8 +306,6 @@ class QuestdbDatabase(BaseDatabase):
         """读取TICK数据"""
         sql: str = f"""
             SELECT
-                symbol,
-                exchange,
                 datetime,
                 name,
                 volume,
@@ -347,7 +345,7 @@ class QuestdbDatabase(BaseDatabase):
               AND exchange = %s
               AND datetime >= %s
               AND datetime <= %s
-              AND (deleted = false OR deleted IS NULL)
+              AND deleted = false
             ORDER BY datetime;
         """
 
@@ -359,51 +357,53 @@ class QuestdbDatabase(BaseDatabase):
         )
 
         ticks: list[TickData] = []
-        for row in self._iter_rows(sql, params):
+        append = ticks.append
+        from_datetime = self._from_questdb_datetime
+        for row in self._iter_tuples(sql, params):
             localtime: datetime | None = None
-            if row["localtime"]:
-                localtime = self._from_questdb_datetime(row["localtime"])
+            if row[33]:
+                localtime = from_datetime(row[33])
 
             tick: TickData = TickData(
-                symbol=row["symbol"],
-                exchange=Exchange(row["exchange"]),
-                datetime=self._from_questdb_datetime(row["datetime"]),
-                name=row["name"],
-                volume=row["volume"],
-                turnover=row["turnover"],
-                open_interest=row["open_interest"],
-                last_price=row["last_price"],
-                last_volume=row["last_volume"],
-                limit_up=row["limit_up"],
-                limit_down=row["limit_down"],
-                open_price=row["open_price"],
-                high_price=row["high_price"],
-                low_price=row["low_price"],
-                pre_close=row["pre_close"],
-                bid_price_1=row["bid_price_1"],
-                bid_price_2=row["bid_price_2"],
-                bid_price_3=row["bid_price_3"],
-                bid_price_4=row["bid_price_4"],
-                bid_price_5=row["bid_price_5"],
-                ask_price_1=row["ask_price_1"],
-                ask_price_2=row["ask_price_2"],
-                ask_price_3=row["ask_price_3"],
-                ask_price_4=row["ask_price_4"],
-                ask_price_5=row["ask_price_5"],
-                bid_volume_1=row["bid_volume_1"],
-                bid_volume_2=row["bid_volume_2"],
-                bid_volume_3=row["bid_volume_3"],
-                bid_volume_4=row["bid_volume_4"],
-                bid_volume_5=row["bid_volume_5"],
-                ask_volume_1=row["ask_volume_1"],
-                ask_volume_2=row["ask_volume_2"],
-                ask_volume_3=row["ask_volume_3"],
-                ask_volume_4=row["ask_volume_4"],
-                ask_volume_5=row["ask_volume_5"],
+                symbol=symbol,
+                exchange=exchange,
+                datetime=from_datetime(row[0]),
+                name=row[1],
+                volume=row[2],
+                turnover=row[3],
+                open_interest=row[4],
+                last_price=row[5],
+                last_volume=row[6],
+                limit_up=row[7],
+                limit_down=row[8],
+                open_price=row[9],
+                high_price=row[10],
+                low_price=row[11],
+                pre_close=row[12],
+                bid_price_1=row[13],
+                bid_price_2=row[14],
+                bid_price_3=row[15],
+                bid_price_4=row[16],
+                bid_price_5=row[17],
+                ask_price_1=row[18],
+                ask_price_2=row[19],
+                ask_price_3=row[20],
+                ask_price_4=row[21],
+                ask_price_5=row[22],
+                bid_volume_1=row[23],
+                bid_volume_2=row[24],
+                bid_volume_3=row[25],
+                bid_volume_4=row[26],
+                bid_volume_5=row[27],
+                ask_volume_1=row[28],
+                ask_volume_2=row[29],
+                ask_volume_3=row[30],
+                ask_volume_4=row[31],
+                ask_volume_5=row[32],
                 localtime=localtime,
                 gateway_name="DB",
             )
-            ticks.append(tick)
+            append(tick)
 
         return ticks
 
@@ -420,7 +420,7 @@ class QuestdbDatabase(BaseDatabase):
             WHERE symbol = %s
               AND exchange = %s
               AND interval = %s
-              AND (deleted = false OR deleted IS NULL);
+              AND deleted = false;
         """
         update_sql: str = f"""
             UPDATE {BAR_TABLE}
@@ -428,7 +428,7 @@ class QuestdbDatabase(BaseDatabase):
             WHERE symbol = %s
               AND exchange = %s
               AND interval = %s
-              AND (deleted = false OR deleted IS NULL);
+              AND deleted = false;
         """
         params: tuple[Any, ...] = (symbol, exchange.value, interval.value)
 
@@ -449,14 +449,14 @@ class QuestdbDatabase(BaseDatabase):
             FROM {TICK_TABLE}
             WHERE symbol = %s
               AND exchange = %s
-              AND (deleted = false OR deleted IS NULL);
+              AND deleted = false;
         """
         update_sql: str = f"""
             UPDATE {TICK_TABLE}
             SET deleted = true
             WHERE symbol = %s
               AND exchange = %s
-              AND (deleted = false OR deleted IS NULL);
+              AND deleted = false;
         """
         params: tuple[Any, ...] = (symbol, exchange.value)
 
@@ -477,7 +477,7 @@ class QuestdbDatabase(BaseDatabase):
                 min(datetime) AS start_datetime,
                 max(datetime) AS end_datetime
             FROM {BAR_TABLE}
-            WHERE deleted = false OR deleted IS NULL
+            WHERE deleted = false
             GROUP BY symbol, exchange, interval
             ORDER BY symbol, exchange, interval;
         """
@@ -506,7 +506,7 @@ class QuestdbDatabase(BaseDatabase):
                 min(datetime) AS start_datetime,
                 max(datetime) AS end_datetime
             FROM {TICK_TABLE}
-            WHERE deleted = false OR deleted IS NULL
+            WHERE deleted = false
             GROUP BY symbol, exchange
             ORDER BY symbol, exchange;
         """
@@ -528,15 +528,25 @@ class QuestdbDatabase(BaseDatabase):
         self,
         sql: str,
         params: tuple[Any, ...] | None = None
-    ) -> list[DictRow]:
+    ) -> Iterator[DictRow]:
         """分批读取查询结果"""
-        rows: list[DictRow] = []
         with psycopg.connect(self.conninfo, row_factory=dict_row) as conn:
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
                 while batch := cursor.fetchmany(FETCH_SIZE):
-                    rows.extend(batch)
-        return rows
+                    yield from batch
+
+    def _iter_tuples(
+        self,
+        sql: str,
+        params: tuple[Any, ...] | None = None
+    ) -> Iterator[tuple[Any, ...]]:
+        """分批读取tuple查询结果"""
+        with psycopg.connect(self.conninfo) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(sql, params)
+                while batch := cursor.fetchmany(FETCH_SIZE):
+                    yield from batch
 
     def _query_count(self, sql: str, params: tuple[Any, ...]) -> int:
         """查询单个count结果"""
