@@ -1,10 +1,18 @@
-# vnpy_questdb
+# VeighNa框架的QuestDB数据库接口
 
-QuestDB database adapter for the VeighNa quant trading framework.
+<p align="center">
+  <img src ="https://vnpy.oss-cn-shanghai.aliyuncs.com/vnpy-logo.png"/>
+</p>
 
-## 功能特点
+<p align="center">
+    <img src ="https://img.shields.io/badge/version-1.0.0-blueviolet.svg"/>
+    <img src ="https://img.shields.io/badge/platform-windows|linux|macos-yellow.svg"/>
+    <img src ="https://img.shields.io/badge/python-3.10|3.11|3.12|3.13-blue.svg" />
+</p>
 
-`vnpy_questdb` 提供 VeighNa 数据库接口实现，用于将K线和Tick数据保存到 QuestDB。
+## 说明
+
+对接 QuestDB 的高性能时序数据库接口实现。
 
 主要特性：
 
@@ -63,7 +71,3 @@ docker run --rm -p 8812:8812 -p 9000:9000 questdb/questdb
 - `database.http_port`：QuestDB HTTP端口，用于 ILP/HTTP 数据写入。
 
 如果 QuestDB 部署在远程主机，请确认 `database.host` 可以从运行 VeighNa 的机器访问，并确认 `database.port` 与 `database.http_port` 均已开放。
-
-## 许可证
-
-本项目使用 MIT License，详见 `LICENSE`。
