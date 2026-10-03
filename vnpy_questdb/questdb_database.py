@@ -1,3 +1,5 @@
+"""QuestDB的K线与Tick存储实现。"""
+
 from collections.abc import Iterator
 from datetime import datetime, timezone
 from time import monotonic, sleep
@@ -232,9 +234,7 @@ WAL_TABLE_STATUS_SQL: str = """
 
 
 class QuestdbDatabase(BaseDatabase):
-    """
-    QuestDB数据库接口。
-    """
+    """QuestDB数据库接口。"""
 
     def __init__(self) -> None:
         """
@@ -272,9 +272,7 @@ class QuestdbDatabase(BaseDatabase):
         return f"http::addr={self.host}:{self.http_port};"
 
     def init_tables(self) -> None:
-        """
-        初始化数据库表。
-        """
+        """初始化数据库表。"""
         with psycopg.connect(self.conninfo, autocommit=True) as conn:
             with conn.cursor() as cursor:
                 cursor.execute(CREATE_BAR_TABLE_SQL)
@@ -282,14 +280,7 @@ class QuestdbDatabase(BaseDatabase):
 
     def save_bar_data(self, bars: list[BarData], stream: bool = False) -> bool:
         """
-        保存K线数据。
-
-        Args:
-            bars: 待写入的K线数据列表。
-            stream: VeighNa数据库接口兼容参数，QuestDB写入逻辑不区分该参数。
-
-        Returns:
-            写入成功返回True。
+        保存K线数据。stream是接口兼容参数，写入时不区分。
 
         Raises:
             ValueError: 当K线周期为空时抛出。
@@ -331,14 +322,7 @@ class QuestdbDatabase(BaseDatabase):
 
     def save_tick_data(self, ticks: list[TickData], stream: bool = False) -> bool:
         """
-        保存Tick数据。
-
-        Args:
-            ticks: 待写入的Tick数据列表。
-            stream: VeighNa数据库接口兼容参数，QuestDB写入逻辑不区分该参数。
-
-        Returns:
-            写入成功返回True。
+        保存Tick数据。stream是接口兼容参数，写入时不区分。
         """
         if not ticks:
             return True
@@ -407,19 +391,7 @@ class QuestdbDatabase(BaseDatabase):
         start: datetime,
         end: datetime
     ) -> list[BarData]:
-        """
-        读取K线数据。
-
-        Args:
-            symbol: 合约代码。
-            exchange: 交易所。
-            interval: K线周期。
-            start: 查询开始时间。
-            end: 查询结束时间。
-
-        Returns:
-            按时间升序排列的K线数据列表。
-        """
+        """按时间升序读取K线数据。"""
         params: SqlParams = (
             symbol,
             exchange.value,
@@ -457,18 +429,7 @@ class QuestdbDatabase(BaseDatabase):
         start: datetime,
         end: datetime
     ) -> list[TickData]:
-        """
-        读取Tick数据。
-
-        Args:
-            symbol: 合约代码。
-            exchange: 交易所。
-            start: 查询开始时间。
-            end: 查询结束时间。
-
-        Returns:
-            按时间升序排列的Tick数据列表。
-        """
+        """按时间升序读取Tick数据。"""
         params: SqlParams = (
             symbol,
             exchange.value,
@@ -533,17 +494,7 @@ class QuestdbDatabase(BaseDatabase):
         exchange: Exchange,
         interval: Interval
     ) -> int:
-        """
-        软删除K线数据。
-
-        Args:
-            symbol: 合约代码。
-            exchange: 交易所。
-            interval: K线周期。
-
-        Returns:
-            被标记删除的K线数据数量。
-        """
+        """软删除K线数据，并返回被标记删除的数量。"""
         params: SqlParams = (symbol, exchange.value, interval.value)
 
         # 使用deleted标记软删除，避免直接移除QuestDB WAL表中的历史记录。
@@ -558,16 +509,7 @@ class QuestdbDatabase(BaseDatabase):
         symbol: str,
         exchange: Exchange
     ) -> int:
-        """
-        软删除Tick数据。
-
-        Args:
-            symbol: 合约代码。
-            exchange: 交易所。
-
-        Returns:
-            被标记删除的Tick数据数量。
-        """
+        """软删除Tick数据，并返回被标记删除的数量。"""
         params: SqlParams = (symbol, exchange.value)
 
         # 使用deleted标记软删除，避免直接移除QuestDB WAL表中的历史记录。
@@ -578,12 +520,7 @@ class QuestdbDatabase(BaseDatabase):
         return count
 
     def get_bar_overview(self) -> list[BarOverview]:
-        """
-        查询数据库中的K线汇总信息。
-
-        Returns:
-            K线汇总信息列表。
-        """
+        """查询数据库中的K线汇总信息。"""
         overviews: list[BarOverview] = []
         for row in self._iter_rows(GET_BAR_OVERVIEW_SQL):
             overview: BarOverview = BarOverview(
@@ -599,12 +536,7 @@ class QuestdbDatabase(BaseDatabase):
         return overviews
 
     def get_tick_overview(self) -> list[TickOverview]:
-        """
-        查询数据库中的Tick汇总信息。
-
-        Returns:
-            Tick汇总信息列表。
-        """
+        """查询数据库中的Tick汇总信息。"""
         overviews: list[TickOverview] = []
         for row in self._iter_rows(GET_TICK_OVERVIEW_SQL):
             overview: TickOverview = TickOverview(
