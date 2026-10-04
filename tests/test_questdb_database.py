@@ -252,6 +252,28 @@ def test_from_questdb_datetime_treats_naive_as_utc() -> None:
     assert QuestdbDatabase._from_questdb_datetime(aware) == aware.astimezone(DB_TZ)
 
 
+@pytest.mark.parametrize(
+    ("configured", "connected"),
+    [
+        ("localhost", "127.0.0.1"),
+        ("", "127.0.0.1"),
+        ("10.0.0.8", "10.0.0.8"),
+    ],
+)
+def test_loopback_host_uses_ipv4(
+    monkeypatch: pytest.MonkeyPatch,
+    configured: str,
+    connected: str,
+) -> None:
+    sql_log.clear()
+    monkeypatch.setattr(qdb.psycopg, "connect", _connect)
+    monkeypatch.setitem(SETTINGS, "database.host", configured)
+    db: QuestdbDatabase = QuestdbDatabase()
+    assert db.host == connected
+    assert f"host={connected} " in db.conninfo
+    assert db.ilp_conf == f"http::addr={connected}:9000;"
+
+
 def test_init_creates_tables_over_stubbed_connection(database: QuestdbDatabase) -> None:
     statements: list[str] = [sql for sql, _params in init_sql]
     assert CREATE_BAR_TABLE_SQL in statements

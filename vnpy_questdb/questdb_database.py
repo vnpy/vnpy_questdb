@@ -244,6 +244,10 @@ class QuestdbDatabase(BaseDatabase):
         K线和Tick数据表已经创建。
         """
         self.host: str = str(SETTINGS.get("database.host", "localhost"))
+        # 空地址和 localhost 都按 127.0.0.1 连接。Windows 上 localhost 会先连 ::1，
+        # QuestDB 默认只监听 IPv4，libpq 要超时才改试下一个地址。
+        if self.host.strip().lower() in {"", "localhost"}:
+            self.host = "127.0.0.1"
         self.port: int = int(SETTINGS.get("database.port", 8812))
         self.user: str = str(SETTINGS.get("database.user", "admin"))
         self.password: str = str(SETTINGS.get("database.password", "quest"))
