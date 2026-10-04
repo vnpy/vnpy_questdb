@@ -1,6 +1,6 @@
 """QuestDB的K线与Tick存储实现。"""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from datetime import datetime, timezone
 from time import monotonic, sleep
 from typing import Any, TypeAlias
@@ -273,7 +273,9 @@ class QuestdbDatabase(BaseDatabase):
 
     def init_tables(self) -> None:
         """初始化数据库表。"""
+        conn: psycopg.Connection[RowTuple]
         with psycopg.connect(self.conninfo, autocommit=True) as conn:
+            cursor: psycopg.Cursor[RowTuple]
             with conn.cursor() as cursor:
                 cursor.execute(CREATE_BAR_TABLE_SQL)
                 cursor.execute(CREATE_TICK_TABLE_SQL)
@@ -288,7 +290,9 @@ class QuestdbDatabase(BaseDatabase):
         if not bars:
             return True
 
+        sender: Sender
         with Sender.from_conf(self.ilp_conf) as sender:
+            bar: BarData
             for bar in bars:
                 interval: Interval | None = bar.interval
                 if interval is None:
@@ -327,7 +331,9 @@ class QuestdbDatabase(BaseDatabase):
         if not ticks:
             return True
 
+        sender: Sender
         with Sender.from_conf(self.ilp_conf) as sender:
+            tick: TickData
             for tick in ticks:
                 columns: IlpColumns = {
                     "name": tick.name,
@@ -401,8 +407,9 @@ class QuestdbDatabase(BaseDatabase):
         )
 
         bars: list[BarData] = []
-        append = bars.append
-        from_datetime = self._from_questdb_datetime
+        append: Callable[[BarData], None] = bars.append
+        from_datetime: Callable[[datetime], datetime] = self._from_questdb_datetime
+        row: RowTuple
         for row in self._iter_tuples(LOAD_BAR_DATA_SQL, params):
             bar: BarData = BarData(
                 symbol=symbol,
@@ -438,8 +445,9 @@ class QuestdbDatabase(BaseDatabase):
         )
 
         ticks: list[TickData] = []
-        append = ticks.append
-        from_datetime = self._from_questdb_datetime
+        append: Callable[[TickData], None] = ticks.append
+        from_datetime: Callable[[datetime], datetime] = self._from_questdb_datetime
+        row: RowTuple
         for row in self._iter_tuples(LOAD_TICK_DATA_SQL, params):
             localtime: datetime | None = None
             if row[33]:
@@ -522,6 +530,7 @@ class QuestdbDatabase(BaseDatabase):
     def get_bar_overview(self) -> list[BarOverview]:
         """查询数据库中的K线汇总信息。"""
         overviews: list[BarOverview] = []
+        row: DictRow
         for row in self._iter_rows(GET_BAR_OVERVIEW_SQL):
             overview: BarOverview = BarOverview(
                 symbol=row["symbol"],
@@ -538,6 +547,7 @@ class QuestdbDatabase(BaseDatabase):
     def get_tick_overview(self) -> list[TickOverview]:
         """查询数据库中的Tick汇总信息。"""
         overviews: list[TickOverview] = []
+        row: DictRow
         for row in self._iter_rows(GET_TICK_OVERVIEW_SQL):
             overview: TickOverview = TickOverview(
                 symbol=row["symbol"],
@@ -565,9 +575,12 @@ class QuestdbDatabase(BaseDatabase):
         Yields:
             字典格式的查询结果行。
         """
+        conn: psycopg.Connection[DictRow]
         with psycopg.connect(self.conninfo, row_factory=dict_row) as conn:
+            cursor: psycopg.Cursor[DictRow]
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
+                batch: list[DictRow]
                 while batch := cursor.fetchmany(FETCH_SIZE):
                     yield from batch
 
@@ -586,9 +599,12 @@ class QuestdbDatabase(BaseDatabase):
         Yields:
             元组格式的查询结果行。
         """
+        conn: psycopg.Connection[RowTuple]
         with psycopg.connect(self.conninfo) as conn:
+            cursor: psycopg.Cursor[RowTuple]
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
+                batch: list[RowTuple]
                 while batch := cursor.fetchmany(FETCH_SIZE):
                     yield from batch
 
@@ -603,7 +619,9 @@ class QuestdbDatabase(BaseDatabase):
         Returns:
             查询到的count字段值。
         """
+        conn: psycopg.Connection[DictRow]
         with psycopg.connect(self.conninfo, row_factory=dict_row) as conn:
+            cursor: psycopg.Cursor[DictRow]
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
                 row: DictRow | None = cursor.fetchone()
@@ -619,7 +637,9 @@ class QuestdbDatabase(BaseDatabase):
             sql: 待执行的SQL语句。
             params: SQL参数。
         """
+        conn: psycopg.Connection[RowTuple]
         with psycopg.connect(self.conninfo, autocommit=True) as conn:
+            cursor: psycopg.Cursor[RowTuple]
             with conn.cursor() as cursor:
                 cursor.execute(sql, params)
 
@@ -640,7 +660,9 @@ class QuestdbDatabase(BaseDatabase):
         deadline: float = monotonic() + WAL_APPLY_TIMEOUT
 
         while True:
+            conn: psycopg.Connection[DictRow]
             with psycopg.connect(self.conninfo, row_factory=dict_row) as conn:
+                cursor: psycopg.Cursor[DictRow]
                 with conn.cursor() as cursor:
                     cursor.execute(WAL_TABLE_STATUS_SQL, (table_name,))
                     row: DictRow | None = cursor.fetchone()
